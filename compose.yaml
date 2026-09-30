@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: alia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: alia
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alia -d alia"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+  migrate:
+    build: {context: ., dockerfile: infra/docker/Dockerfile}
+    command: ["node", "scripts/deploy-database.mjs"]
+    environment:
+      MIGRATION_DATABASE_URL: postgresql://alia:${POSTGRES_PASSWORD}@postgres:5432/alia
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD as 64 hex characters}
+    depends_on:
+      postgres: {condition: service_healthy}
+  api:
+    build: {context: ., dockerfile: infra/docker/Dockerfile}
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://alia_runtime:${APP_DB_PASSWORD}@postgres:5432/alia
+      API_PORT: 4000
+      APP_ORIGIN: ${APP_ORIGIN:?Set HTTPS APP_ORIGIN}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?Set MFA_ENCRYPTION_KEY}
+      SESSION_HOURS: ${SESSION_HOURS:-12}
+      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_FROM: ${SMTP_FROM:?Set SMTP_FROM}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      PRIVATE_STORAGE_DIR: /app/private-storage
+      PRIVATE_STORAGE_KEY: ${PRIVATE_STORAGE_KEY:?Set PRIVATE_STORAGE_KEY as 64 hex characters}
+    volumes: ["private-files:/app/private-storage"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    restart: unless-stopped
+  web:
+    build: {context: ., dockerfile: infra/docker/Dockerfile}
+    command: ["npm", "run", "start", "-w", "@alia/web"]
+    environment:
+      NODE_ENV: production
+      API_INTERNAL_URL: http://api:4000
+    depends_on: [api]
+    restart: unless-stopped
+  nginx:
+    image: nginx:stable-alpine
+    ports: ["127.0.0.1:8080:80"]
+    volumes: ["./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on: [web, api]
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    profiles: [queues]
+    volumes: ["redis-data:/data"]
+volumes:
+  postgres-data:
+  redis-data:
+  private-files:

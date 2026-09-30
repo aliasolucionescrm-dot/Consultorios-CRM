@@ -1,0 +1,1 @@
+{"extends":"../../tsconfig.base.json","compilerOptions":{"outDir":"dist","rootDir":"../.."},"include":["src/**/*.ts","../../packages/database/src/**/*.ts"],"exclude":["../../packages/database/src/seed.ts","../../packages/database/src/migrate.ts"]}

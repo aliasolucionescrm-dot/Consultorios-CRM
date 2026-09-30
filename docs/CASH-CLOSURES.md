@@ -1,0 +1,28 @@
+# Corte de caja: registros por periodo
+
+Administración → Corte de caja. Consultar una sucursal, fechas Desde/Hasta inclusive (máximo 31 días y sin fechas futuras), y opcionalmente responsable del cobro. Fechas interpretadas en zona horaria de la organización mediante Temporal; hasta exclusivo corresponde a medianoche local del día siguiente, sin asumir días de 24 horas. Incluye sucursales inactivas para consulta histórica y responsables con pagos históricos.
+
+Vista previa con pagos registrados, anulaciones registradas y neto por moneda/método; no se suman monedas diferentes. El detalle conserva fecha de evento, folio del pago, método, cobrador y referencia/motivo. Máximo 2000 eventos por consulta; si excede, requiere reducir periodo/responsable, nunca guarda un total truncado. Detalle visible en páginas de 20 eventos y lista de cortes en páginas de 20 cortes.
+
+Cada pago suma en su fecha de registro; cada anulación resta en su propia fecha de registro, incluso si el pago ocurrió antes del periodo. Puede resultar un neto negativo cuando se corrigen registros anteriores. El filtro de responsable y sucursal aplica al pago original, no al usuario que anuló. Anular una captura no equivale a devolver dinero; los importes son netos de registros, no movimientos bancarios verificados.
+
+Guardar corte revisado solicita confirmación y admite observaciones. Conserva copia inmutable del resultado, filtros, nombres, zona horaria, folio, autor y fecha de guardado. Compara hash de la vista previa con los datos al guardar; si hay cambios requiere nueva consulta/revisión. request_id/hash evita duplicación por reintentos concurrentes; reutilizar con otros datos devuelve conflicto. Una consulta SQL reúne pagos/anulaciones; es una copia de registros visibles a dicha consulta, no congela transacciones posteriores.
+
+No bloquea periodos ni crea turnos de caja. Los cortes pueden solaparse y no deben sumarse entre sí. No incluye arqueo de efectivo físico, fondo inicial, gastos, retiros, depósitos, devoluciones, facturación fiscal, impresión/exportación ni liquidaciones profesionales. El siguiente bloque propuesto es arqueo con efectivo contado y diferencias por moneda, sin presentar el neto de registros como efectivo esperado cuando existan anulaciones de periodos anteriores.
+
+Permisos nuevos cash_closures.view/create. Propietario, Administrador y Caja consultan y guardan; Contabilidad consulta. Estos permisos permiten consultar todos los responsables/sucursales de la organización; no hay restricción a caja personal. No se exponen datos clínicos o nombres de pacientes en el reporte. Actualizados roles existentes y nuevas organizaciones. Auditoría de vista previa, detalle y guardado. Migración 0032, tabla cash_closures con RLS forzada y SELECT/INSERT solamente para aplicación. Sin edición/borrado de cortes.
+
+Vista previa y observaciones permanecen en memoria tras errores. Cambiar de módulo/recargar puede descartar la revisión no guardada. Abrir un corte histórico advierte si hay observaciones o confirmación pendientes. Tras pérdida de respuesta puede reintentarse el mismo guardado sin duplicar.
+## Arqueo de efectivo
+
+Abre un corte guardado → Registrar arqueo. Captura fondo inicial y efectivo contado por moneda; todas las monedas con efectivo del corte son obligatorias. Se pueden añadir MXN, USD o EUR aunque no tengan pagos, por ejemplo para un fondo inicial. No se convierten monedas ni se incluyen tarjetas/transferencias.
+
+Cálculo en servidor: esperado declarado = fondo inicial + pagos en efectivo registrados + ajustes de entrada − ajustes de salida. Diferencia = contado − esperado. Resultado negativo significa faltante; positivo, sobrante. Las anulaciones del corte se muestran como referencia, pero no se restan automáticamente: el usuario revisa si corresponde una corrección justificada a la base documental. Esto evita tratar una captura errónea o una anulación de periodos anteriores como devolución de efectivo.
+
+Cada ajuste requiere importe positivo y motivo, máximo 20 por moneda. Fondo y conteo no negativos, hasta dos decimales; no se admite esperado negativo. Faltantes/sobrantes requieren explicación. Confirmación expresa de que fondo, efectivo y ajustes corresponden al periodo/responsable del corte. Son declaraciones del usuario, no movimientos de dinero ni verificación independiente. No corrigen pagos, saldos de pacientes ni bancos.
+
+Guardar conserva folio, autor, fecha de registro, valores de entrada y resultados inmutables. Corregir arqueo crea una versión nueva con motivo obligatorio; historial de últimas 25 versiones, anteriores conservadas. Control optimista por versión, request_id/hash y bloqueos para reintentos concurrentes sin duplicados. La base sigue siendo el corte guardado, aunque existan pagos posteriores: para otro alcance temporal se requiere consultar/guardar otro corte y contar efectivo correspondiente. No bloquea periodos, no abre/cierra turnos, ni arrastra automáticamente fondos de otros arqueos.
+
+Migración 0033 cash_counts con RLS forzada y SELECT/INSERT. Consulta con cash_closures.view; captura/corrección añade cash_closures.create. Contabilidad solo consulta. Auditoría sin importes ni motivos en registro general. Recargar avisa si hay borrador; actualizar/descartar pide confirmación. Mientras se captura o guarda se bloquean filtros y apertura de otro corte en esta vista para evitar perder cambios; navegar de módulo puede descartarlos.
+
+Pendiente: arqueo por denominaciones, impresión/exportación de corte y arqueo, aprobación supervisora, turnos y movimientos reales de fondos/retiros/gastos. No confundir estos ajustes declarados con un módulo contable de egresos o devoluciones.

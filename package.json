@@ -1,0 +1,65 @@
+{
+  "name": "alia-dental",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "db:local": "tsx scripts/local-postgres.ts",
+    "db:migrate": "tsx packages/database/src/migrate.ts",
+    "db:seed": "tsx packages/database/src/seed.ts",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit -p apps/api && tsc --noEmit -p apps/web && tsc --noEmit -p packages/database",
+    "lint": "eslint apps packages scripts tests",
+    "test": "node scripts/test-isolated.mjs",
+    "test:e2e": "playwright test",
+    "db:provision": "tsx scripts/provision-runtime.ts",
+    "db:backup-drill": "node scripts/backup-drill.mjs",
+    "db:bootstrap": "tsx scripts/bootstrap-owner.ts",
+    "db:seed-patients": "tsx packages/database/src/seed-patients.ts",
+    "db:seed-catalogs": "node scripts/seed-catalogs.mjs"
+  },
+  "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
+    "@nestjs/common": "^11.1.0",
+    "@nestjs/core": "^11.1.0",
+    "@nestjs/platform-express": "^11.1.0",
+    "@nestjs/swagger": "^11.2.0",
+    "argon2": "^0.44.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.45.3",
+    "helmet": "^8.1.0",
+    "nodemailer": "^10.0.12",
+    "otpauth": "^9.4.1",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.56.1",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/express": "^5.0.5",
+    "@types/node": "^24.10.0",
+    "@types/nodemailer": "^7.0.3",
+    "@types/pg": "^8.15.6",
+    "@types/smtp-server": "^3.5.13",
+    "@types/supertest": "^6.0.3",
+    "embedded-postgres": "17.6.0-beta.15",
+    "eslint": "^9.39.0",
+    "smtp-server": "^3.19.15",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.3",
+    "vitest": "^5.0.2"
+  }
+}

@@ -1,0 +1,11 @@
+import 'dotenv/config';
+import { test,expect } from '@playwright/test';
+test('configure and persist room weekly hours',async({page},info)=>{
+ const name=`Horario ficticio ${Date.now()} ${info.project.name}`;
+ await page.goto('/');await page.getByLabel('Correo electrónico',{exact:true}).fill('ana@alia.example');await page.getByLabel('Contraseña',{exact:true}).fill(process.env.DEMO_PASSWORD!);await page.getByRole('button',{name:'Iniciar sesión',exact:true}).click();await expect(page.getByRole('heading',{name:'Hola, Ana.'})).toBeVisible();
+ await page.goto('/#rooms');await page.getByRole('button',{name:'Nuevo consultorio',exact:true}).click();await page.getByLabel('Nombre',{exact:true}).fill(name);await page.getByRole('button',{name:'Crear consultorio',exact:true}).click();await expect(page.getByRole('heading',{name:'Nuevo consultorio',exact:true})).toHaveCount(0);
+ await page.goto('/#agenda');await page.getByLabel('Fecha de la agenda',{exact:true}).fill('2042-02-03');await page.getByRole('button',{name:'Horarios de atención',exact:true}).click();await page.getByRole('combobox',{name:'Horario de',exact:true}).selectOption('rooms');await page.getByRole('combobox',{name:/Consultorio del horario/}).fill(name);await page.getByRole('listbox').getByRole('option',{name}).click();await expect(page.getByText(/Sin configurar:/)).toBeVisible();await page.getByRole('button',{name:'Añadir turno Lunes',exact:true}).click();await page.getByLabel('Motivo del horario',{exact:true}).fill('Turno ficticio de prueba');await page.getByRole('button',{name:'Guardar horario',exact:true}).click();await expect(page.getByText('Guardado correctamente',{exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+ await page.screenshot({path:`test-results/${info.project.name}-room-schedule.png`,fullPage:true});
+ await page.getByRole('button',{name:'Cerrar formulario',exact:true}).click();await page.getByRole('button',{name:'Horarios de atención',exact:true}).click();await page.getByRole('combobox',{name:'Horario de',exact:true}).selectOption('rooms');await page.getByRole('combobox',{name:/Consultorio del horario/}).fill(name);await page.getByRole('listbox').getByRole('option',{name}).click();await expect(page.getByLabel('Lunes inicio 0',{exact:true})).toHaveValue('09:00');
+});

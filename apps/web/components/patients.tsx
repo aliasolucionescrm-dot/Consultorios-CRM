@@ -1,0 +1,115 @@
+'use client';
+import {PatientPayments} from './patient-payments';
+import { useEffect,useState } from 'react';
+import { ArrowLeft,ArrowRight,ChevronLeft,ChevronRight,Mail,MapPin,Phone,Plus,Search,UserRound,Users } from 'lucide-react';
+import { Resource,type Choice } from './resource-picker';
+import { PatientConsents } from './patient-consents';
+import { PrescriptionDrafts } from './prescription-drafts';
+import { PatientBudget } from './patient-budget';
+import { TreatmentPlan } from './treatment-plan';
+import { Odontogram } from './odontogram';
+import { ClinicalRecord } from './clinical-record';
+import { PatientProfilePhoto } from './patient-profile-photo';
+import { PatientAttachments } from './patient-attachments';
+import { api } from '../lib/api';
+import type { Patient,PatientPage,PatientSummary } from '../lib/patients';
+import { patientAge } from '../lib/patients';
+import { Empty,ErrorMessage,Field,Form,Heading,Section } from './ui';
+
+function routePatient(id=''){window.location.hash=id?`patients/${id}`:'patients';}
+function selectedFromHash(){const part=window.location.hash.split('/')[1];return part==='new'||/^[a-f0-9-]{36}$/i.test(part||'')?part:null;}
+export type PatientAppointment={id:string;branch_id:string;starts_at:string;ends_at:string;timezone:string;status:string;service_name:string;professional_name:string;room_name:string;branch_name:string};
+export function Patients({can,openAppointment}:{openAppointment:(appointment:PatientAppointment)=>void;can:(permission:string)=>boolean}){
+ const [selected,setSelected]=useState<string|null>(()=>selectedFromHash());
+ const [patient,setPatient]=useState<Patient|null>(null),[editing,setEditing]=useState(false),[error,setError]=useState(''),[loading,setLoading]=useState(false);
+ const [search,setSearch]=useState(''),[debounced,setDebounced]=useState(''),[status,setStatus]=useState('active');
+ const [page,setPage]=useState<PatientPage>({items:[],nextCursor:null}),[cursor,setCursor]=useState<string|null>(null),[history,setHistory]=useState<(string|null)[]>([]);
+ useEffect(()=>{const listener=()=>{setSelected(selectedFromHash());setEditing(false);setError('');};window.addEventListener('hashchange',listener);return()=>window.removeEventListener('hashchange',listener);},[]);
+ useEffect(()=>{const timer=setTimeout(()=>{setDebounced(search.trim());setCursor(null);setHistory([]);},250);return()=>clearTimeout(timer);},[search]);
+ useEffect(()=>{
+  if(selected)return;let active=true;setLoading(true);setError('');
+  const params=new URLSearchParams({q:debounced,status});if(cursor)params.set('cursor',cursor);
+  api<PatientPage>(`patients?${params}`).then(result=>{if(active)setPage(result);}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);});
+  return()=>{active=false;};
+ },[selected,debounced,status,cursor]);
+ useEffect(()=>{
+  setPatient(null);if(!selected||selected==='new')return;let active=true;setLoading(true);setError('');
+  api<Patient>(`patients/${selected}`).then(result=>{if(active)setPatient(result);}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);});
+  return()=>{active=false;};
+ },[selected]);
+ async function saved(id:string){setEditing(false);if(selected===id)setPatient(await api<Patient>(`patients/${id}`));else routePatient(id);}
+ if(selected==='new'||editing)return <PatientEditor patient={editing?patient:null} onSaved={saved} onCancel={()=>{if(editing)setEditing(false);else routePatient();}}/>;
+ if(selected)return <><button className="text-button" onClick={()=>routePatient()}><ArrowLeft size={16}/>Volver a pacientes</button><ErrorMessage message={error}/>{loading?<p role="status" className="skeleton">Cargando ficha…</p>:patient?<PatientProfile patient={patient} paymentView={can('payments.view')} paymentCreate={can('payments.create')} paymentVoid={can('payments.void')} budgetView={can('budgets.view')} budgetEdit={can('budgets.manage')&&can('clinical_records.view')} clinicalView={can('clinical_records.view')} clinicalEdit={can('clinical_records.edit')} showAppointment={can('appointments.view')} openAppointment={openAppointment} editable={can('patients.edit')} edit={()=>setEditing(true)}/>:null}</>;
+ return <><Heading eyebrow="TU PRÁCTICA · PACIENTES" title="Personas, antes que expedientes." description="Encuentra a tus pacientes y mantén sus datos al día." action={can('patients.create')?<button className="button primary" onClick={()=>routePatient('new')}><Plus size={18}/>Nuevo paciente</button>:undefined}/>
+  <div className="patients-toolbar"><label className="patients-search"><Search size={19}/><span className="sr-only">Buscar pacientes</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nombre, teléfono, correo o expediente" maxLength={100}/></label><label className="patients-filter"><span className="sr-only">Estado de pacientes</span><select value={status} onChange={e=>{setStatus(e.target.value);setCursor(null);setHistory([]);}}><option value="active">Pacientes activos</option><option value="inactive">Pacientes inactivos</option><option value="all">Todos los pacientes</option></select></label></div>
+  <ErrorMessage message={error}/>{loading?<p className="skeleton" role="status">Buscando pacientes…</p>:page.items.length?<><div className="patient-directory">{page.items.map(p=><button className="patient-directory-row" onClick={()=>routePatient(p.id)} key={p.id}><span className="patient-avatar">{p.first_name[0]}{p.last_name[0]}</span><span className="patient-directory-name"><strong>{p.first_name} {p.last_name}</strong><small>{patientAge(p.birth_date)} · {p.record_number}</small></span><span className="patient-directory-contact"><span>{p.phone||'Sin teléfono registrado'}</span><small>{p.email}</small></span><span className={`pill ${p.active?'green':''}`}>{p.active?'Activo':'Inactivo'}</span><ArrowRight size={17}/></button>)}</div><div className="patients-pagination"><span>Página {history.length+1} · {page.items.length} pacientes</span><div><button className="button secondary" disabled={!history.length} onClick={()=>{setCursor(history.at(-1)||null);setHistory(h=>h.slice(0,-1));}}><ChevronLeft size={16}/>Anterior</button><button className="button secondary" disabled={!page.nextCursor} onClick={()=>{setHistory(h=>[...h,cursor]);setCursor(page.nextCursor);}}>Siguiente<ChevronRight size={16}/></button></div></div></>:!error?<Empty icon={<Users size={30}/>} title={debounced?'No encontramos coincidencias':'Tu directorio empieza aquí'} description={debounced?'Prueba con otro nombre, teléfono o número de expediente.':'Registra a tu primer paciente para tener sus datos siempre a mano.'} action={!debounced&&can('patients.create')?<button className="button primary" onClick={()=>routePatient('new')}><Plus size={17}/>Registrar paciente</button>:undefined}/>:null}
+ </>;
+}
+
+function PatientProfile({patient:p,editable,edit,showAppointment,openAppointment,clinicalView,clinicalEdit,budgetView,budgetEdit,paymentView,paymentCreate,paymentVoid}:{paymentView:boolean;paymentCreate:boolean;paymentVoid:boolean;budgetView:boolean;budgetEdit:boolean;clinicalView:boolean;clinicalEdit:boolean;patient:Patient;editable:boolean;edit:()=>void;showAppointment:boolean;openAppointment:(appointment:PatientAppointment)=>void}){
+ useEffect(()=>{const focus=()=>{const section=window.location.hash.split('/')[2];if(section)requestAnimationFrame(()=>{const element=document.getElementById('patient-section-'+section);element?.scrollIntoView({block:'start'});element?.focus({preventScroll:true});});};focus();window.addEventListener('hashchange',focus);return()=>window.removeEventListener('hashchange',focus);},[p.id]);
+ const sex={female:'Femenino',male:'Masculino',other:'Otro',not_specified:'No especificado'};
+ return <><header className="patient-profile-header"><PatientProfilePhoto key={p.id} patientId={p.id} initials={p.first_name[0]+p.last_name[0]} editable={editable&&p.active}/><div><div className="eyebrow">{p.record_number} · DATOS GENERALES</div><h1>{p.first_name} {p.last_name}</h1><p>{patientAge(p.birth_date)} <span>·</span> {sex[p.sex]} <span>·</span> <span className={`pill ${p.active?'green':''}`}>{p.active?'Activo':'Inactivo'}</span></p></div>{editable&&<button className="button secondary" onClick={edit}>Editar datos</button>}</header>
+ {p.tags.length>0&&<div className="patient-tags">{p.tags.map(t=><span className="pill" key={t}>{t}</span>)}</div>}
+ {clinicalView&&<div id="patient-section-clinical" tabIndex={-1} className="patient-section-anchor"><ClinicalRecord key={"clinical-"+p.id} patientId={p.id} editable={clinicalEdit&&p.active}/></div>}
+ {clinicalView&&<div id="patient-section-odontogram" tabIndex={-1} className="patient-section-anchor"><Odontogram key={"odontogram-"+p.id} patientId={p.id} editable={clinicalEdit&&p.active}/></div>}
+ {clinicalView&&<div id="patient-section-plan" tabIndex={-1} className="patient-section-anchor"><TreatmentPlan key={"plan-"+p.id} patientId={p.id} editable={clinicalEdit&&p.active}/></div>}
+ {clinicalView&&<div id="patient-section-consents" tabIndex={-1} className="patient-section-anchor"><PatientConsents key={"consents-"+p.id} patientId={p.id} editable={clinicalEdit&&p.active}/></div> }
+ {clinicalView&&<div id="patient-section-prescriptions" tabIndex={-1} className="patient-section-anchor"><PrescriptionDrafts key={"prescriptions-"+p.id} patientId={p.id} patientName={p.first_name+' '+p.last_name} editable={clinicalEdit&&p.active}/></div> }
+ {paymentView&&<div id="patient-section-payments" tabIndex={-1} className="patient-section-anchor"><PatientPayments key={"payments-"+p.id} patientId={p.id} active={p.active} canCreate={paymentCreate} canVoid={paymentVoid}/></div>}{budgetView&&<div id="patient-section-budget" tabIndex={-1} className="patient-section-anchor"><PatientBudget key={"budget-"+p.id} patientId={p.id} editable={budgetEdit&&p.active}/></div> }
+ {clinicalView&&<div id="patient-section-photos" tabIndex={-1} className="patient-section-anchor"><PatientAttachments key={"photos-"+p.id} patientId={p.id} editable={editable&&clinicalEdit} active={p.active} clinical/></div>}
+ <PatientAttachments key={"files-"+p.id} patientId={p.id} editable={editable} active={p.active}/>
+ <PatientRelatives key={"relatives-"+p.id} patientId={p.id} editable={editable}/>
+ {showAppointment&&<NextAppointment key={"next-"+p.id} patientId={p.id} open={openAppointment}/>}
+ <div className="patient-profile-body"><section><h2>Contacto</h2><div className="patient-contact-item"><Phone size={19}/><div><small>Teléfono</small><strong>{p.phone||'No registrado'}</strong>{p.whatsapp&&<span>WhatsApp: {p.whatsapp}</span>}</div></div><div className="patient-contact-item"><Mail size={19}/><div><small>Correo electrónico</small><strong>{p.email||'No registrado'}</strong></div></div><div className="patient-contact-item"><MapPin size={19}/><div><small>Dirección</small><strong>{p.address||'No registrada'}</strong></div></div></section><section><h2>Información personal</h2><dl className="patient-facts"><dt>Fecha de nacimiento</dt><dd>{p.birth_date?p.birth_date.split('-').reverse().join('/'):'No registrada'}</dd><dt>Ocupación</dt><dd>{p.occupation||'No registrada'}</dd><dt>Responsable o tutor</dt><dd>{p.guardian_name||'No registrado'}{p.guardian_relationship&&` · ${p.guardian_relationship}`}</dd><dt>Contacto de emergencia</dt><dd>{p.emergency_name||'No registrado'}{p.emergency_phone&&<span>{p.emergency_phone}</span>}</dd></dl></section></div>
+ <Section title="Datos fiscales" description="Información para la administración de tu práctica."><dl className="patient-facts"><dt>Nombre o razón social</dt><dd>{p.fiscal_name||'No registrado'}</dd><dt>RFC</dt><dd>{p.fiscal_rfc||'No registrado'}</dd><dt>Código postal</dt><dd>{p.fiscal_postal_code||'No registrado'}</dd></dl></Section>
+ {p.administrative_notes&&<Section title="Notas administrativas"><p className="patient-notes">{p.administrative_notes}</p></Section>}
+ <div className="patient-record-note"><UserRound size={20}/><div><strong>Una ficha que crecerá con tu práctica</strong><p>Esta sección reúne datos generales. El personal clínico autorizado puede consultar antecedentes y notas. El odontograma permite documentar observaciones por pieza.</p></div></div><p className="muted footnote">Actualizado: {new Date(p.updated_at).toLocaleString('es-MX')} · Versión {p.version}</p>
+ </>;
+}
+
+function PatientEditor({patient:p,onSaved,onCancel}:{patient:Patient|null;onSaved:(id:string)=>Promise<void>;onCancel:()=>void}){
+ const [requestId]=useState(()=>crypto.randomUUID()),[dirty,setDirty]=useState(false),[active,setActive]=useState(p?.active??true);
+ useEffect(()=>{const leave=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',leave);return()=>window.removeEventListener('beforeunload',leave);},[dirty]);
+ function cancel(){if(!dirty||window.confirm('Tienes cambios sin guardar. ¿Quieres descartarlos?'))onCancel();}
+ return <><button className="text-button" onClick={cancel}><ArrowLeft size={16}/>{p?'Volver a la ficha':'Volver al directorio'}</button><Heading eyebrow={p?p.record_number:'NUEVO PACIENTE'} title={p?'Actualiza sus datos.':'Un nuevo vínculo comienza aquí.'} description="Empieza con nombre y apellidos. Puedes completar el resto después."/>
+ <div onChange={()=>setDirty(true)}><Form label={p?'Guardar cambios':'Registrar paciente'} onSubmit={async values=>{
+  const data={...values,active,tags:(values.tags||'').split(',').map(t=>t.trim()).filter(Boolean)};
+  const result=await api<{id:string}>(p?`patients/${p.id}`:'patients',p?'PATCH':'POST',p?{...data,version:p.version}:{...data,request_id:requestId});
+  setDirty(false);await onSaved(result.id);
+ }}>
+ <Section title="Identificación" description="El número de expediente se asigna automáticamente."><div className="form-grid"><Field label="Nombre(s)" name="first_name" value={p?.first_name} required maxLength={100}/><Field label="Apellidos" name="last_name" value={p?.last_name} required maxLength={150}/><Field label="Fecha de nacimiento" name="birth_date" type="date" value={p?.birth_date||''}/><label className="field"><span>Sexo</span><select name="sex" defaultValue={p?.sex||'not_specified'}><option value="not_specified">No especificado</option><option value="female">Femenino</option><option value="male">Masculino</option><option value="other">Otro</option></select></label><Field label="Ocupación" name="occupation" value={p?.occupation} maxLength={120}/></div></Section>
+ <Section title="Contacto" description="Teléfonos y dirección para comunicarte con el paciente."><div className="form-grid"><Field label="Teléfono" name="phone" type="tel" value={p?.phone} maxLength={30}/><Field label="WhatsApp" name="whatsapp" type="tel" value={p?.whatsapp} maxLength={30}/><Field label="Correo electrónico" name="email" type="email" value={p?.email} maxLength={254}/><Field label="Dirección" name="address" value={p?.address} maxLength={500}/></div></Section>
+ <Section title="Acompañamiento" description="Personas de contacto y responsable, cuando corresponda."><div className="form-grid"><Field label="Contacto de emergencia" name="emergency_name" value={p?.emergency_name} maxLength={180}/><Field label="Teléfono de emergencia" name="emergency_phone" type="tel" value={p?.emergency_phone} maxLength={30}/><Field label="Responsable o tutor" name="guardian_name" value={p?.guardian_name} maxLength={180}/><Field label="Parentesco del responsable" name="guardian_relationship" value={p?.guardian_relationship} maxLength={80}/></div></Section>
+ <Section title="Datos fiscales" description="Opcionales. Puedes completarlos cuando se necesiten."><div className="form-grid"><Field label="Nombre o razón social" name="fiscal_name" value={p?.fiscal_name} maxLength={200}/><Field label="RFC" name="fiscal_rfc" value={p?.fiscal_rfc} maxLength={13}/><Field label="Código postal fiscal" name="fiscal_postal_code" value={p?.fiscal_postal_code} maxLength={5}/></div></Section>
+ <Section title="Organización" description="Usa etiquetas y notas para facilitar el trabajo administrativo."><div className="form-grid"><div className="full-width"><Field label="Etiquetas" name="tags" value={p?.tags.join(', ')} help="Separadas por comas. Hasta 10 etiquetas, de 30 caracteres cada una."/></div><label className="field full-width"><span>Notas administrativas</span><textarea name="administrative_notes" defaultValue={p?.administrative_notes||''} maxLength={2000} rows={4}/><small>Reserva diagnósticos, alergias y antecedentes para el expediente clínico.</small></label>{p&&<><label className="field"><span>Estado del paciente</span><select value={String(active)} onChange={e=>setActive(e.target.value==='true')}><option value="true">Activo</option><option value="false">Inactivo</option></select></label>{active!==p.active&&<Field label="Motivo del cambio de estado" name="reason" required maxLength={500} help="Se registrará en la auditoría. La ficha se conservará."/>}</>}</div></Section>
+ </Form></div></>;
+}
+
+export function PatientQuickSearch({search,open}:{search:string;open:(id:string)=>void}){
+ const [items,setItems]=useState<PatientSummary[]>([]),[error,setError]=useState('');
+ useEffect(()=>{
+  let active=true;setItems([]);setError('');if(search.trim().length<2)return;
+  const timer=setTimeout(()=>{api<PatientPage>(`patients?q=${encodeURIComponent(search.trim())}&limit=5`).then(p=>{if(active)setItems(p.items);}).catch(()=>{if(active)setError('No se pudo buscar pacientes. Inténtalo de nuevo.');});},250);
+  return()=>{active=false;clearTimeout(timer);};
+ },[search]);
+ return <>{error&&<p className="muted command-patient-label" role="status">{error}</p>}{items.length>0&&<div className="command-patient-label">PACIENTES</div>}{items.map(p=><button key={p.id} onClick={()=>open(p.id)}><UserRound size={19}/><span>{p.first_name} {p.last_name}<small className="command-patient-detail">{p.record_number} · {p.phone?`•••${p.phone.slice(-3)}`:'Sin teléfono'}</small></span><ArrowRight size={16}/></button>)}</>;
+}
+
+function NextAppointment({patientId,open}:{patientId:string;open:(appointment:PatientAppointment)=>void}){
+ const [appointment,setAppointment]=useState<PatientAppointment|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
+ useEffect(()=>{let live=true;setLoading(true);setError('');api<{appointment:PatientAppointment|null}>('patients/'+patientId+'/next-appointment').then(r=>{if(live)setAppointment(r.appointment);}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[patientId,revision]);
+ const statuses:Record<string,string>={pending:'Pendiente de confirmación',confirmed:'Confirmada',arrived:'En sala de espera',in_consultation:'En consulta'};
+ return <Section title="Próxima cita"><ErrorMessage message={error}/>{loading?<p role="status">Consultando próxima cita…</p>:!error?appointment?<><p><strong>{new Intl.DateTimeFormat('es-MX',{timeZone:appointment.timezone,dateStyle:'full',timeStyle:'short'}).format(new Date(appointment.starts_at))}</strong></p><p>{appointment.service_name} · {statuses[appointment.status]}</p><p>{appointment.professional_name} · {appointment.room_name} · {appointment.branch_name}</p><p className="muted">Hora de {appointment.timezone}</p><button className="button primary" onClick={()=>open(appointment)}>Ver cita en agenda</button></>:<p>No tiene citas futuras pendientes.</p>:null}<button className="text-button" disabled={loading} onClick={()=>setRevision(v=>v+1)}>Actualizar próxima cita</button></Section>;
+}
+
+const relationLabels:Record<string,string>={parent:'Madre / padre',child:'Hija / hijo',sibling:'Hermana / hermano',partner:'Pareja',grandparent:'Abuela / abuelo',grandchild:'Nieta / nieto',other:'Otro familiar'};
+type Relative={id:string;version:number;relative_id:string;first_name:string;last_name:string;record_number:string;active:boolean;relationship:string};
+function PatientRelatives({patientId,editable}:{patientId:string;editable:boolean}){
+ const [items,setItems]=useState<Relative[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[revision,setRevision]=useState(0),[adding,setAdding]=useState(false),[selected,setSelected]=useState<Choice|null>(null),[removing,setRemoving]=useState<Relative|null>(null);
+ useEffect(()=>{let live=true;setLoading(true);setError('');api<{items:Relative[]}>('patients/'+patientId+'/relatives').then(r=>{if(live)setItems(r.items);}).catch(e=>{if(live)setError(e.message);}).finally(()=>{if(live)setLoading(false);});return()=>{live=false;};},[patientId,revision]);
+ return <Section title="Familiares vinculados" description="Relaciona fichas de pacientes. El parentesco no otorga acceso, representación legal ni comparte información clínica."><ErrorMessage message={error}/>{loading?<p role="status">Cargando familiares…</p>:!error&&!items.length?<p>Aún no hay familiares vinculados.</p>:items.map(r=><div className="invitation-row" key={r.id}><div><strong>{r.first_name} {r.last_name}</strong><p>{relationLabels[r.relationship]} · {r.record_number}{!r.active?' · Paciente inactivo':''}</p><button className="text-button" onClick={()=>routePatient(r.relative_id)}>Abrir ficha de {r.first_name}</button></div>{editable&&<button className="text-button" onClick={()=>setRemoving(r)}>Quitar vínculo</button>}</div>)}{editable&&!adding&&<button className="button secondary" onClick={()=>{setAdding(true);setSelected(null);}}>Vincular familiar</button>}{adding&&<Form label="Guardar vínculo" onSubmit={async values=>{if(!selected||selected.id===patientId)throw new Error('Selecciona otro paciente.');await api('patients/'+patientId+'/relatives','POST',{relative_id:selected.id,relationship:values.relationship});setAdding(false);setRevision(v=>v+1);}}><Resource kind="patients" branch="" label="Paciente familiar" value={selected} onChange={setSelected}/><label className="field"><span>Esta persona es su</span><select name="relationship">{Object.entries(relationLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><button type="button" className="text-button" onClick={()=>setAdding(false)}>Cancelar vínculo</button></Form>}{removing&&<Form label="Confirmar retiro del vínculo" onSubmit={async values=>{await api('patients/'+patientId+'/relatives/'+removing.id+'/remove','PATCH',{version:removing.version,reason:values.reason});setRemoving(null);setRevision(v=>v+1);}}><p>Retirar el vínculo con {removing.first_name} {removing.last_name} de ambas fichas.</p><Field label="Motivo del retiro" name="reason" required maxLength={500}/><button type="button" className="text-button" onClick={()=>setRemoving(null)}>Conservar vínculo</button></Form>}<button className="text-button" disabled={loading} onClick={()=>setRevision(v=>v+1)}>Actualizar familiares</button></Section>;
+}
+
+
+

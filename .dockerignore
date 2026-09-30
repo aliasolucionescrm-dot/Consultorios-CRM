@@ -1,0 +1,16 @@
+node_modules
+.tools
+.local
+.env
+.env.*
+backups
+private-storage
+*.dump
+*.dump.aes
+*.pem
+*.key
+.git
+**/.next
+**/dist
+test-results
+playwright-report
