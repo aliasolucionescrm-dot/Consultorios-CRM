@@ -208,3 +208,79 @@ E2E escritorio/móvil aprobadas: guardar corte, capturar fondo/efectivo/ajuste, 
 ## Navegación de módulos — 30 septiembre 2026
 
 Prueba E2E aprobada en escritorio y móvil: accesos desde menú, búsqueda progresiva, apertura/enfoque de historia clínica, presupuestos y pagos, navegación a cortes/reportes, etiquetas Pendiente y restricción visual con permisos simulados en respuesta de organización. Simulación solo para control de interfaz; APIs y permisos del servidor sin cambios. Corregido el test móvil para abrir el menú antes de pulsar sus opciones. Captura móvil revisada. TypeScript web, ESLint y build aprobados. No se repitió suite de API sin cambios; último resultado completo 102 pruebas.
+
+## 01/10/2026 — Impresión de corte y arqueo
+
+- Typecheck web, lint de archivos modificados y compilación de producción correctos.
+- Dos pruebas unitarias del documento: escape de texto, movimientos fuera de primera página, monedas separadas, neto negativo, ajustes/diferencias y estados de versión/sin arqueo.
+- E2E de caja en escritorio y móvil: guardado/corrección/recarga, vista previa, selección de arqueo anterior/último/omitido, llamada de impresión interceptada y cierre del documento. Ambos pasan; captura móvil revisada sin desbordamiento.
+- No se verificó impresora física ni archivo PDF generado por el diálogo del sistema. No hubo cambios de API/esquema; no se repitió la suite completa de integración.
+
+## 01/10/2026 — Participación profesional
+
+- Suite en base temporal aislada: 107 pruebas correctas (14 archivos). Nuevos casos: redondeo exacto, reintentos concurrentes, versión obsoleta, historial, cambio de nombre, aislamiento/RLS, inmutabilidad, acuerdo sustituido, profesional inactivo y permisos de Contabilidad/Caja.
+- E2E escritorio/móvil: acuerdo con descuento, búsqueda de doctor, cálculo 33.33%, asignación, corrección a 50%, recarga e historial. Ambos correctos; captura móvil revisada sin desbordamiento.
+- Lint completo, typecheck API/web y build correctos. Migración 0034 aplicada al entorno local.
+- Este bloque no implementa pagos al profesional; no se verificaron transferencias o egresos reales.
+
+## 01/10/2026 — Pagos al profesional
+
+- Suite aislada completa: 108 pruebas correctas, 14 archivos. Casos añadidos: pagos concurrentes sin sobrepasar saldo, liquidación exacta, reintentos, rechazo de asignación/sucursal inválida, bloqueo de acuerdo/asignación, anulación idempotente, aislamiento y prohibición de borrado, consulta Contabilidad y escritura restringida.
+- E2E escritorio/móvil: abono, liquidación, anulación de captura, saldo tras recarga y bloqueo visual de corrección. Ambos correctos; captura móvil revisada.
+- Typecheck API/web, lint y compilación correctos. Migración 0035 aplicada localmente.
+- No hubo transferencias reales; pagos ficticios de prueba. Egresos aún no integrados automáticamente al corte/arqueo.
+
+## 01/10/2026 — Egresos profesionales en caja
+
+- Suite aislada: 111 pruebas correctas (14 archivos). Cubre cálculo con egresos, referencias de anulación sin reintegro, transferencias excluidas del efectivo, fecha local cruzando medianoche, responsable con solo egresos, confirmación obligatoria y snapshots/cálculos históricos intactos.
+- E2E corte/arqueo en escritorio y móvil correctos. E2E participación/pagos/egresos en escritorio y móvil correctos tras corregir un selector exacto del texto de diferencia en la prueba; revisión obligatoria, arqueo guardado e impresión con egresos verificados. Captura móvil revisada.
+- Typecheck API/web, lint y build correctos. Sin migraciones de tablas. No se probó impresora física.
+- La revisión de ajustes es explícita, no detección automática de duplicados por texto libre.
+
+## 01/10/2026 — Recibos profesionales
+
+- 113 pruebas correctas en base aislada (15 archivos): contexto guardado/legacy, permisos, alcance paciente/organización, anulación y escape de texto.
+- E2E escritorio/móvil: recibo vigente, anulación por API con vista abierta, reconsulta antes de impresión interceptada, marca ANULADO, retiro de saldo y cierre. Captura móvil revisada.
+- Lint completo, typecheck API/web y build correctos. Migración 0036 aplicada localmente.
+- No se probó impresora física ni archivo PDF exportado por el diálogo del sistema.
+
+## 01/10/2026 — Reporte profesional
+
+- Suite aislada: 115 pruebas correctas (15 archivos). Periodos con pagos/anulaciones en días distintos, saldo actual independiente de fechas, periodos vacíos, fechas inválidas, aislamiento, permisos Caja/Contabilidad, inactivos y exclusión de doctor sustituido verificados.
+- E2E escritorio/móvil correctos tras corregir distribución adaptable: navegación desde Reportes, búsqueda, consulta, recibo y periodo vacío. Comprobación automática sin desbordamiento horizontal.
+- Typecheck API/web, lint completo y compilación correctos. Sin migración. Impresión/exportación del reporte pendiente.
+
+## 01/10/2026 — Impresión del reporte profesional
+
+- Dos pruebas unitarias nuevas correctas: 25 movimientos completos, importes/monedas, neto negativo, estados vacíos y escape de texto/omisión de identificadores de pacientes.
+- E2E escritorio/móvil correctos: vista previa, llamada de impresión interceptada, cierre y retiro del documento al cambiar fechas. Captura móvil revisada.
+- Typecheck web, lint completo y build correctos. Sin cambios de API/esquema; no se repitió integración completa (última: 115 pruebas).
+- No se probó impresora física ni PDF exportado desde el diálogo del sistema.
+
+## 01/10/2026 — Preferencias de recordatorios
+
+- Suite aislada: 120 pruebas correctas (17 archivos). Incluye 24 horas por ambos canales, reprogramación/cancelación, contactos cambiados, inactivos, permisos, aislamiento y escritura concurrente 201/409.
+- E2E escritorio/móvil correctos: guardar ambos canales, recargar, consultar vista previa, desactivar y conservar historial; sin desbordamiento horizontal. Captura móvil revisada.
+- Typecheck API/web, lint completo y build correctos. Migración 0037 aplicada localmente.
+- No se enviaron mensajes ni se verificaron proveedores externos. La vista previa no es una cola de envíos.
+
+## 01/10/2026 — Cola persistente de recordatorios
+
+- Suite aislada: 121 pruebas correctas (17 archivos), tras separar recursos del nuevo escenario de los horarios configurados en pruebas anteriores. Verifica reintentos, reprogramación, cambios de preferencias/contactos, concurrencia confirmación/preferencias, cancelación, RLS y prohibición de borrar cola.
+- E2E escritorio/móvil: preparación por ambos canales, reprogramación con historial e invalidación al cancelar; sin desbordamiento horizontal. Captura móvil revisada.
+- Typecheck API/web, lint completo y build correctos. Migración 0038 aplicada localmente. Sin entregas reales ni proveedores probados.
+- PostgreSQL local recuperado y puerto cambiado de 55432 (EACCES de Windows al escuchar) a 25432 en .env local. Web/API locales iniciadas; datos conservados.
+
+## 01/10/2026 — WhatsApp manual
+
+- Suite aislada: 125 pruebas correctas (18 archivos). URL y caracteres especiales, zona horaria, alcance paciente/organización, permisos, autorización, contactos cambiados, borrador desactualizado, cancelación y citas de menos de 24 horas sin cola.
+- E2E escritorio/móvil correctos: preparar, editar, apertura interceptada con URL/texto comprobados, bloqueo tras reprogramar y conservación del texto. Captura móvil revisada, sin desbordamiento horizontal.
+- Typecheck API/web, lint y build correctos; sin migración. Se corrigieron expectativas de formato horario/selector en pruebas y se añadió nombre accesible explícito al campo del mensaje.
+- No se contactó a pacientes ni se abrió una cuenta real de WhatsApp: navegación interceptada en pruebas. No hay verificación de envío, recepción o lectura.
+
+## 01/10/2026 — Remisiones, finanzas, inventario y laboratorios
+
+- Suite aislada: 130 pruebas correctas en 19 archivos. Incluye transiciones clínicas, informes obligatorios, control de versiones, permisos/RLS, stock por sucursal y concurrencia, traslado de pagos, devoluciones concurrentes, saldo a favor y efecto en corte/arqueo.
+- E2E: 2 escenarios nuevos correctos (escritorio/móvil), más 4 de regresión de caja y participación profesional. Capturas móviles revisadas; se corrigió texto cortado en selector de pagos y se repitieron ambos escenarios.
+- Typecheck API/web/database y lint correctos. Build correcto; ajuste posterior de estilo del selector validado con typecheck, lint y E2E.
+- Migraciones 0039–0042 aplicadas localmente. No hubo envío a especialistas/pacientes, movimientos bancarios ni publicación en Git. Límites operativos documentados en OPERATIONS-EXPANSION.md.

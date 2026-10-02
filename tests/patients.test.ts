@@ -24,6 +24,10 @@ beforeAll(async()=>{
  const r=await request(app.getHttpServer()).post('/api/auth/login').set('Origin',origin).send({email:readerEmail,password});readerCookie=r.headers['set-cookie'][0].split(';')[0];readerCsrf=(await request(app.getHttpServer()).get('/api/auth/me').set('Cookie',readerCookie)).body.csrf;
 });
 afterAll(async()=>{await app?.close();await pool.end();});
+it('denies WhatsApp preparation to a role without patient access',async()=>{
+ const path='/api/patients/'+randomUUID()+'/whatsapp-reminders/'+randomUUID()+'/draft';
+ expect((await request(app.getHttpServer()).post(path).set('Origin',origin).set('Cookie',readerCookie).set('X-CSRF-Token',readerCsrf).set('X-Organization-Id',orgA).send({})).status).toBe(403);
+});
 describe('Patients: persistence, permissions, RLS and concurrency',()=>{
  it('creates a patient with organization-issued folio and persists all administrative fields',async()=>{
   const result=await call('post','patients').send({request_id:randomUUID(),first_name:'María Fernanda',last_name:'López Navarro',birth_date:'1991-05-09',phone:'999 123 4567',email:'maria.ficticia@example.invalid',emergency_name:'Contacto ficticio',tags:['Primera visita']});
@@ -104,4 +108,12 @@ it('links family bidirectionally, prevents duplicate pairs and removes with vers
  expect((await call('get','patients/'+a+'/relatives')).body.items).toHaveLength(0);expect((await call('get','patients/'+b+'/relatives')).body.items).toHaveLength(0);
  expect((await call('post','patients/'+a+'/relatives').send({relative_id:b,relationship:'other'})).status).toBe(201);
  expect((await request(app.getHttpServer()).post('/api/patients/'+a+'/relatives').set('Origin',origin).set('Cookie',readerCookie).set('X-CSRF-Token',readerCsrf).set('X-Organization-Id',orgA).send({relative_id:b,relationship:'parent'})).status).toBe(403);
+});
+it('records reminder preferences with reviewed contacts, history, concurrency, permissions and isolation',async()=>{
+ await patientTransaction(orgA,c=>query("UPDATE patients SET active=true,email='reminder@example.invalid',whatsapp='+529991234567' WHERE organization_id=$1 AND id=$2",[orgA,patientId],c));const base='patients/'+patientId+'/reminder-preferences';expect((await call('get',base)).body.preference).toBeNull();
+ const body={version:0,email_enabled:true,whatsapp_enabled:true,email:'reminder@example.invalid',whatsapp:'+52 999 123 4567',offsets_hours:[24],notes:'Preferencia indicada por paciente ficticio',reviewed:true};expect((await call('post',base).send({...body,reviewed:false})).status).toBe(400);expect((await call('post',base).send({...body,email:'different@example.invalid'})).status).toBe(400);expect((await call('post',base).send({...body,whatsapp:'9991234567'})).status).toBe(400);expect((await call('post',base).send({...body,offsets_hours:[48]})).status).toBe(400);
+ const pair=await Promise.all([call('post',base).send(body),call('post',base).send(body)]);expect(pair.map(r=>r.status).sort()).toEqual([201,409]);const read=await call('get',base);expect(read.body.history).toHaveLength(1);expect(read.body.preference).toMatchObject({email_enabled:true,whatsapp_enabled:true,whatsapp:'+529991234567'});expect((await call('get',base+'/preview')).body).toMatchObject({delivery_enabled:false});
+ expect((await call('get',base,orgB)).status).toBe(404);expect((await call('post',base,orgB).send(body)).status).toBe(404);expect(await patientTransaction(orgB,c=>query('SELECT * FROM patient_reminder_preferences',[],c))).toHaveLength(0);await expect(patientTransaction(orgA,c=>query('DELETE FROM patient_reminder_preferences',[],c))).rejects.toMatchObject({code:'42501'});
+ await patientTransaction(orgA,c=>query("UPDATE patients SET email='changed@example.invalid',active=false WHERE organization_id=$1 AND id=$2",[orgA,patientId],c));expect((await call('post',base).send({...body,version:1,email:'changed@example.invalid'})).status).toBe(400);expect((await call('post',base).send({...body,version:1,email_enabled:false,whatsapp_enabled:false,notes:'Baja de canales'})).status).toBe(201);expect((await call('get',base)).body.history).toHaveLength(2);
+ expect((await request(app.getHttpServer()).get('/api/'+base).set('Cookie',readerCookie).set('X-Organization-Id',orgA)).status).toBe(403);
 });

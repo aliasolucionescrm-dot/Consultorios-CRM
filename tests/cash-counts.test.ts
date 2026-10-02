@@ -8,3 +8,10 @@ it('calculates physical cash separately from record reversals and other payment 
  expect(()=>calculateCount([{...mx,difference_reason:''},usd],totals)).toThrow();expect(()=>calculateCount([mx],totals)).toThrow();expect(()=>calculateCount([mx,mx,usd],totals)).toThrow();expect(()=>calculateCount([{...mx,adjustments:[{direction:'out',amount_minor:12000,reason:'Exceso'}]},usd],totals)).toThrow();
  expect(countLine.safeParse({...mx,opening_minor:1.1}).success).toBe(false);expect(countLine.safeParse({...mx,counted_minor:-1}).success).toBe(false);expect(countLine.safeParse({...mx,expected_minor:0}).success).toBe(false);
 });
+it('deducts professional cash payments but keeps reversals as reference and ignores transfers',()=>{
+ const line={currency:'MXN' as const,opening_minor:5000,counted_minor:4000,adjustments:[],difference_reason:''};
+ const totals=[{currency:'MXN',method:'cash',received_minor:1000,voided_minor:500,paid_minor:2000,payout_voided_minor:700},{currency:'MXN',method:'transfer',received_minor:0,voided_minor:0,paid_minor:9000,payout_voided_minor:0}];
+ const result=calculateCount([line],totals)[0];expect(result.expected_minor).toBe(4000);expect(result.paid_minor).toBe(2000);expect(result.payout_voided_records_minor).toBe(700);expect(result.difference_minor).toBe(0);
+ expect(calculateCount([{...line,counted_minor:6000}],totals.map(t=>({...t,paid_minor:undefined,payout_voided_minor:undefined})))[0].expected_minor).toBe(6000);
+ expect(()=>calculateCount([],totals)).toThrow();expect(()=>calculateCount([{...line,opening_minor:0}],totals)).toThrow();
+});

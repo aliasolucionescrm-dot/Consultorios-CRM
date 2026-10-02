@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.3.30 — Operación clínica y administrativa (01/10/2026)
+
+- Remisiones a especialistas externos, seguimiento e informes versionados dentro del expediente.
+- Sustitución de presupuestos con traslado de abonos y saldo a favor; devoluciones vinculadas al pago original y descontadas en caja/arqueo.
+- Inventario operativo por sucursal: artículos, entradas, salidas, ajustes e historial, sin existencias negativas.
+- Directorio y trabajos de laboratorio por paciente: solicitud, envío, recepción, entrega e informe.
+- Migraciones 0039–0042, permisos y protección ante concurrencia. Alcances y pendientes en docs/OPERATIONS-EXPANSION.md.
+
 ## 0.3.19 — Accesos de módulos conectados
 
 - Expedientes y Tratamientos con selección de herramienta y búsqueda de paciente.
@@ -339,3 +347,64 @@
 
 
 
+
+## 0.3.20 — Documento de corte y arqueo (01/10/2026)
+
+- Vista previa e impresión/PDF desde navegador para cortes guardados, con movimientos completos y monedas separadas.
+- Selección de último arqueo o versión histórica, folios, responsables, ajustes y diferencias; actualización antes de imprimir.
+- Sin cambios al esquema, pagos ni saldos. Permisos de consulta existentes.
+
+## 0.3.21 — Participación profesional (01/10/2026)
+
+- Asignación de doctor interno/externo y porcentaje sobre el total del acuerdo aceptado; acceso desde Caja y ficha del paciente.
+- Historial inmutable, conservación del nombre, redondeo exacto a centavos, validación de versión y reintentos idempotentes.
+- Permisos propios para consulta/gestión, migración 0034 con RLS. Los pagos al doctor quedan para el siguiente bloque.
+
+## 0.3.22 — Pagos al profesional (01/10/2026)
+
+- Abonos, liquidación del saldo, método, sucursal, referencia e historial por paciente/asignación.
+- Anulación auditada de capturas erróneas, controles contra sobrepago concurrente y bloqueo de cambios de acuerdo/participación con pagos vigentes.
+- Migración 0035, permisos propios, RLS e idempotencia. Integración automática de egresos con caja todavía pendiente.
+
+## 0.3.23 — Egresos profesionales en caja (01/10/2026)
+
+- Nuevos cortes incluyen pagos al doctor y anulaciones, separados por moneda/método y fecha del evento.
+- Arqueo descuenta pagos profesionales en efectivo; exige revisar egresos y ajustes. Las anulaciones no son reintegros automáticos.
+- Cortes y arqueos históricos conservados, formato de impresión actualizado y filtro por responsable del registro.
+
+## 0.3.24 — Recibos de pagos al doctor (01/10/2026)
+
+- Vista previa e impresión/PDF desde el historial, con folios y datos de la participación.
+- Nueva consulta de estado antes de imprimir, marca de anulación y saldo histórico solo para registros compatibles no anulados.
+- Migración 0036 conserva clínica, autor y saldo al registrar nuevos pagos. Acceso por permisos financieros existentes.
+
+## 0.3.25 — Reporte profesional (01/10/2026)
+
+- Consulta por doctor y periodo, con búsqueda de activos/inactivos y acceso desde Reportes/Caja.
+- Movimientos por fecha del evento y saldo actual de asignaciones vigentes separados por moneda; detalle paginado y recibos.
+- Lectura consistente, control de permisos/RLS y límite explícito sin truncar totales. Sin nuevas migraciones.
+
+## 0.3.26 — Impresión del reporte profesional (01/10/2026)
+
+- Vista previa A4 e impresión/PDF de la consulta revisada, con fecha de consulta y todos los movimientos.
+- Periodo y saldo actual separados; cambios de filtros cierran el documento anterior.
+
+## 0.3.27 — Preferencias de recordatorios (01/10/2026)
+
+- Correo y WhatsApp por paciente, revisión de contactos, historial y desactivación de canales; migración 0037.
+- Anticipación fija de 24 horas según indicación del usuario; vista previa desde las citas actuales, con contactos cambiados y horarios vencidos identificados.
+- Envíos automáticos y enlaces de confirmación aún no habilitados.
+
+## 0.3.28 — Cola persistente de recordatorios (01/10/2026)
+
+- Preparación automática por cita, versión, preferencias y canal; migración 0038.
+- Invalidación transaccional al cambiar citas, contactos o preferencias, con historial y protección contra duplicados de preparación.
+- Consulta de cola en la ficha, estados preparado/invalidado/vencido y distinción explícita de envíos deshabilitados.
+- Proveedores y trabajador de entrega siguen pendientes.
+
+## 0.3.29 — WhatsApp con mensaje precargado (01/10/2026)
+
+- Apertura manual desde la ficha, con próximas citas, número revisado y borrador editable/restablecible.
+- Validación de autorización, contacto y cita antes de generar el enlace; bloqueo de borradores desactualizados.
+- Compatible con citas de menos de 24 horas sin cola. Auditoría de preparación, sin marcar envío ni confirmar automáticamente.
+- Decisión del usuario: posponer proveedor y automatización; no requiere nuevas credenciales ni migración.

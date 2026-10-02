@@ -1,3 +1,12 @@
+import {RefundsController} from './refunds';
+import {LaboratoriesController,LaboratoryOrdersController} from './laboratories';
+import {InventoryController} from './inventory';
+import {ReferralsController} from './referrals';
+import {WhatsappRemindersController} from './whatsapp-reminders';
+import {ReminderPreferencesController} from './reminder-preferences';
+import {ProfessionalReportController} from './professional-report';
+import {ProfessionalPaymentsController} from './professional-payments';
+import {ProfessionalSharesController} from './professional-shares';
 import {CashCountsController} from './cash-counts';
 import {CashClosuresController} from './cash-closures';
 import {PaymentsController} from './payments';
@@ -35,7 +44,7 @@ class HealthController {
  @Get('live') live(){return {status:'ok'};}
  @Get('ready') async ready(){try{await query('SELECT 1 FROM schema_migrations LIMIT 1');return {status:'ready'};}catch{throw new ServiceUnavailableException('Servicio no disponible.');}}
 }
-@Module({controllers:[CashCountsController,CashClosuresController,PaymentsController,BudgetAcceptancesController,AuthController,OrganizationsController,PatientsController,CatalogsController,AppointmentsController,AvailabilityController,SearchController,AttachmentsController,PhotoAnnotationsController,ClinicalController,OdontogramController,TreatmentPlanController,BudgetsController,PrescriptionDraftsController,ConsentTemplatesController,PatientConsentsController,ConsentEventsController,HealthController],providers:[Access,MailWorker]})
+@Module({controllers:[RefundsController,LaboratoriesController,LaboratoryOrdersController,InventoryController,ReferralsController,WhatsappRemindersController,ReminderPreferencesController,ProfessionalReportController,ProfessionalPaymentsController,ProfessionalSharesController,CashCountsController,CashClosuresController,PaymentsController,BudgetAcceptancesController,AuthController,OrganizationsController,PatientsController,CatalogsController,AppointmentsController,AvailabilityController,SearchController,AttachmentsController,PhotoAnnotationsController,ClinicalController,OdontogramController,TreatmentPlanController,BudgetsController,PrescriptionDraftsController,ConsentTemplatesController,PatientConsentsController,ConsentEventsController,HealthController],providers:[Access,MailWorker]})
 class AppModule{}
 export async function createApp(){
  if(!process.env.DATABASE_URL||!process.env.APP_ORIGIN||!/^[a-f0-9]{64}$/i.test(process.env.MFA_ENCRYPTION_KEY||''))throw new Error('DATABASE_URL, APP_ORIGIN and 32-byte MFA_ENCRYPTION_KEY required');

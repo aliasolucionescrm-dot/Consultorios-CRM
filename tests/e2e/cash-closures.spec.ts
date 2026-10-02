@@ -21,11 +21,13 @@ test('reviews, saves and reloads a cash report',async({page},info)=>{
  const count=page.locator('.cash-count');await count.getByRole('button',{name:'Registrar arqueo',exact:true}).click();
  if(await page.getByLabel('Fondo inicial (MXN)',{exact:true}).count()===0)await page.getByRole('button',{name:'Añadir moneda al arqueo',exact:true}).click();
  const detail=await (await page.request.get('/api/cash-closures/'+id+'/counts',{headers})).json();const received=detail.totals.find((t:{currency:string;method:string})=>t.currency==='MXN'&&t.method==='cash')?.received_minor||0;
- await page.getByLabel('Fondo inicial (MXN)',{exact:true}).fill('100');
+ const paid=detail.totals.find((t:{currency:string;method:string})=>t.currency==='MXN'&&t.method==='cash')?.paid_minor||0;
+ await page.getByLabel('Fondo inicial (MXN)',{exact:true}).fill(((paid+10000)/100).toFixed(2));
  await page.getByLabel('Efectivo contado (MXN)',{exact:true}).fill(((received+9000)/100).toFixed(2));
  await page.getByRole('button',{name:'Añadir ajuste (MXN)',exact:true}).click();
  await page.getByLabel('Importe del ajuste 1 (MXN)',{exact:true}).fill('10');
  await page.getByLabel('Motivo del ajuste 1 (MXN)',{exact:true}).fill('Salida ficticia documentada');
+ if(await page.getByRole('checkbox',{name:/Revisé los egresos: doctor y devoluciones descontados/}).count())await page.getByRole('checkbox',{name:/Revisé los egresos: doctor y devoluciones descontados/}).check();
  await page.getByRole('checkbox',{name:/Revisé el efectivo, fondo, ajustes/}).check();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
  await count.screenshot({path:'test-results/'+info.project.name+'-cash-count-form.png'});
@@ -36,6 +38,7 @@ test('reviews, saves and reloads a cash report',async({page},info)=>{
  await page.getByLabel('Efectivo contado (MXN)',{exact:true}).fill(((received+8900)/100).toFixed(2));
  await page.getByLabel('Explicación de la diferencia (MXN)',{exact:true}).fill('Faltante ficticio por revisar');
  await page.getByLabel('Motivo de corrección del arqueo',{exact:true}).fill('Recuento de prueba');
+ if(await page.getByRole('checkbox',{name:/Revisé los egresos: doctor y devoluciones descontados/}).count())await page.getByRole('checkbox',{name:/Revisé los egresos: doctor y devoluciones descontados/}).check();
  await page.getByRole('checkbox',{name:/Revisé el efectivo, fondo, ajustes/}).check();
  await page.getByRole('button',{name:'Guardar arqueo',exact:true}).click();
  await expect(count.locator('summary').filter({hasText:'Arqueo versión 2'})).toBeVisible();
@@ -43,6 +46,26 @@ test('reviews, saves and reloads a cash report',async({page},info)=>{
  await expect(count.locator('summary').filter({hasText:'Arqueo versión 2'})).toBeVisible();await expect(count.locator('summary').filter({hasText:'Arqueo versión 1'})).toBeVisible();
  await expect(count.getByText('Faltante ficticio por revisar',{exact:false})).toBeVisible();
  await count.screenshot({path:'test-results/'+info.project.name+'-cash-count-history.png'});
+ await page.getByRole('button',{name:'Ver documento del corte',exact:true}).click();
+ const doc=page.frameLocator('iframe[title="Vista previa del corte"]');
+ await expect(doc.getByText('Última versión consultada',{exact:false})).toBeVisible();
+ await expect(doc.getByText('Faltante ficticio por revisar',{exact:false})).toBeVisible();
+ const counts=await (await page.request.get('/api/cash-closures/'+id+'/counts',{headers})).json();
+ await page.getByLabel('Arqueo a incluir',{exact:true}).selectOption(counts.items.find((r:{version:number})=>r.version===1).id);
+ await expect(doc.getByText('VERSIÓN ANTERIOR',{exact:false})).toBeVisible();
+ await page.getByLabel('Arqueo a incluir',{exact:true}).selectOption('none');
+ await expect(doc.getByText('Arqueo no incluido en esta copia.',{exact:true})).toBeVisible();
+ await page.getByLabel('Arqueo a incluir',{exact:true}).selectOption('latest');
+ await expect(doc.getByText('Última versión consultada',{exact:false})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+ await page.locator('section').filter({has:page.getByRole('heading',{name:'Documento del corte',exact:true})}).screenshot({path:'test-results/'+info.project.name+'-cash-document.png'});
+ await page.addInitScript(()=>{window.print=()=>{window.parent.postMessage('cash-print-requested','*');};});
+ await page.evaluate(()=>{window.addEventListener('message',e=>{if(e.data==='cash-print-requested')document.body.dataset.cashPrint='requested';});});
+ await page.getByRole('button',{name:'Imprimir corte / guardar PDF',exact:true}).click();
+ await expect(page.locator('body')).toHaveAttribute('data-cash-print','requested');
+ await expect(page.getByRole('button',{name:'Imprimir corte / guardar PDF',exact:true})).toBeEnabled();
+ await page.getByRole('button',{name:'Cerrar documento',exact:true}).click();
+ await expect(page.locator('iframe[title="Vista previa del corte"]')).toHaveCount(0);
 });
 
 

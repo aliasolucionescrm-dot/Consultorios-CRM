@@ -349,7 +349,7 @@ it('records payments once, prevents concurrent overpayments and preserves correc
  const proposed={request_id:randomUUID(),version:current.version,plan_version:current.plan_version,title:'Propuesta con pagos',currency:current.currency,items:current.items.map((i:{plan_item_id:string;quantity:number;unit_minor:number;discount_minor:number})=>({plan_item_id:i.plan_item_id,quantity:i.quantity,unit_minor:i.unit_minor+1,discount_minor:i.discount_minor}))};
  expect((await call('post',budgetPath).send(proposed)).status).toBe(201);
  expect((await call('post',budgetPath+'/accept').send({request_id:randomUUID(),version:current.version+1,accepted_by:'Prueba',relationship:'Paciente',notes:'',reviewed:true})).status).toBe(409);
- expect((await call('get',budgetPath+'/'+(current.version+1)+'/document')).body.payment_locked).toBe(true);
+ expect((await call('get',budgetPath+'/'+(current.version+1)+'/document')).body.has_patient_payments).toBe(true);
  expect((await call('post',path).send({...body,request_id:randomUUID(),kind:'settlement',amount_minor:1})).status).toBe(400);
  const remaining=a.total_minor-10001;
  const racing=await Promise.all([call('post',path).send({...body,request_id:randomUUID(),kind:'settlement',amount_minor:remaining}),call('post',path).send({...body,request_id:randomUUID(),kind:'settlement',amount_minor:remaining})]);expect(racing.map(r=>r.status).sort()).toEqual([201,409]);
