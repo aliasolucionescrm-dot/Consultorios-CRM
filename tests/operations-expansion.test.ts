@@ -25,12 +25,18 @@ it('keeps stock separate per branch, retries once and prevents concurrent negati
  expect((await call('get','inventory?branch_id='+branch2)).body.items[0].stock).toBe(0);expect((await call('get','inventory?branch_id='+branch)).body.items[0].stock).toBe(10);
  const result=await Promise.all([1,2].map(()=>call('post',base).send({request_id:randomUUID(),branch_id:branch,quantity:-7,kind:'exit',reason:'Consumo'})));expect(result.map(r=>r.status).sort()).toEqual([201,409]);expect((await call('get','inventory?branch_id='+branch)).body.items[0].stock).toBe(3);
  expect((await call('post',base,other).send(entry)).status).toBe(409);expect(await patientTransaction(other,c=>query('SELECT id FROM inventory_movements',[],c))).toHaveLength(0);
+ expect((await call('post',base).send({...entry,request_id:randomUUID(),branch_id:branch2,quantity:4})).status).toBe(201);
+ expect((await call('get','inventory?branch_id='+branch2)).body.items[0].stock).toBe(4);
+ expect((await call('get','inventory?branch_id='+branch)).body.items[0].stock).toBe(3);
+ expect((await call('get',base+'?branch_id='+branch2)).body.items).toHaveLength(1);
 });
 it('tracks lab request, delivery and result while preserving all versions',async()=>{
  const l=await call('post','laboratories').send({name:'Laboratorio prueba',contact:'Contacto',phone:'9991234567'});expect(l.status,l.text).toBe(201);const base='patients/'+patient+'/laboratory-orders';const r=await call('post',base).send({request_id:randomUUID(),version:0,laboratory_id:l.body.id,branch_id:branch,description:'Trabajo manual',due_date:'2030-02-01',state:'requested',notes:'Solicitud'});expect(r.status,r.text).toBe(201);
  expect((await call('post',base).send({request_id:randomUUID(),id:r.body.id,version:1,state:'received',notes:'No enviado',report:'Resultado'})).status).toBe(409);
  for(const [index,state] of ['sent','received','delivered'].entries()){const next=await call('post',base).send({request_id:randomUUID(),id:r.body.id,version:index+1,state,notes:'Seguimiento',report:state==='received'?'Trabajo revisado':''});expect(next.status,next.text).toBe(201);}
  expect((await call('get',base)).body.items[0].report).toBe('Trabajo revisado');expect((await call('get',base+'/'+r.body.id+'/history')).body.items).toHaveLength(4);expect((await call('get',base,other)).status).toBe(404);
+ const second=await call('post',base).send({request_id:randomUUID(),version:0,laboratory_id:l.body.id,branch_id:branch2,description:'Trabajo en segunda sucursal',due_date:'2030-02-02',state:'requested',notes:'Solicitud independiente'});expect(second.status,second.text).toBe(201);
+ const orders=(await call('get',base)).body.items;expect(orders.find((o:{id:string})=>o.id===r.body.id).branch_id).toBe(branch);expect(orders.find((o:{id:string})=>o.id===second.body.id).branch_id).toBe(branch2);
 });
 it('carries net abonos, keeps excess credit, records refunds in cash and blocks duplicate over-refunds',async()=>{
  const item=randomUUID(),base='patients/'+patient;expect((await call('post',base+'/treatment-plan').send({version:0,items:[{id:item,title:'Tratamiento',tooth:'',status:'proposed',notes:''}]})).status).toBe(201);
@@ -47,6 +53,11 @@ it('carries net abonos, keeps excess credit, records refunds in cash and blocks 
  const filters={from:options.today,to:options.today,branch_id:branch},cutPreview=(await call('get','cash-closures/preview?'+new URLSearchParams(filters))).body;const cut=await call('post','cash-closures').send({request_id:randomUUID(),filters,token:cutPreview.token,notes:'Con devoluciones',reviewed:true});expect(cut.status).toBe(201);
  const count=await call('post','cash-closures/'+cut.body.id+'/counts').send({request_id:randomUUID(),version:0,lines:[{currency:'MXN',opening_minor:0,counted_minor:1000,adjustments:[],difference_reason:''}],notes:'',reviewed:true,professional_payments_reviewed:true});expect(count.status,count.text).toBe(201);expect((await call('get','cash-closures/'+cut.body.id+'/counts')).body.items[0].result[0].expected_minor).toBe(1000);
  expect((await call('get',base+'/refunds',other)).status).toBe(404);expect(await patientTransaction(other,c=>query('SELECT id FROM patient_refunds',[],c))).toHaveLength(0);expect((await call('get',base+'/payments/'+pay.body.id+'/receipt')).body.context.balance_after_minor).toBe(2000);
+ expect((await budget(2,9000)).status).toBe(201);
+ const thirdInput={...acceptInput,request_id:randomUUID(),version:3,carry_payments:true};const third=await call('post',base+'/budget/accept').send(thirdInput);expect(third.status,third.text).toBe(201);expect((await call('post',base+'/budget/accept').send(thirdInput)).body.id).toBe(third.body.id);
+ balance=(await call('get',base+'/payments')).body.agreement;expect(balance.paid_minor).toBe(1000);expect(balance.balance_minor).toBe(8000);
+ const finalPay=await call('post',base+'/payments').send({request_id:randomUUID(),acceptance_id:third.body.id,amount_minor:8000,kind:'advance',method:'cash',branch_id:branch2,reference:'Liquidar nuevo acuerdo',notes:''});expect(finalPay.status,finalPay.text).toBe(201);
+ balance=(await call('get',base+'/payments')).body.agreement;expect(balance.paid_minor).toBe(9000);expect(balance.balance_minor).toBe(0);expect(balance.credit_minor).toBe(0);
 });
 it('separates inventory operations, clinical access and accounting consultation',async()=>{
  for(const roleName of ['Inventario','Contabilidad','Recepción']){
